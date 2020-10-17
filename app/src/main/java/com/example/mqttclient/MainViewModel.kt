@@ -1,17 +1,18 @@
 package com.example.mqttclient
 
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import org.eclipse.paho.android.service.MqttAndroidClient
 import org.eclipse.paho.client.mqttv3.*
+import com.google.gson.Gson
 
 class MainViewModel: ViewModel() {
     lateinit var scene: Scene
 
     val brokerUrl = MutableLiveData("tcp://broker.emqx.io:1883")
-    val port = MutableLiveData<String>()
     val publishTopic = MutableLiveData<String>()
     val subscribeTopic = MutableLiveData<String>()
 
@@ -23,8 +24,9 @@ class MainViewModel: ViewModel() {
     val light = MutableLiveData<String>()
     val sound = MutableLiveData<String>()
 
-    val receivedMessage = MutableLiveData<String>()
+    val receivedMessage = MutableLiveData("")
 
+    val gson = Gson()
     lateinit var client: MqttAndroidClient
 
     fun connect(){
@@ -39,12 +41,6 @@ class MainViewModel: ViewModel() {
                 connectStatus.value = "Chưa kết nối"
             }
         })
-    }
-
-    fun publish(){
-        val gson = com.google.gson.Gson()
-        val deviceInfo = Device(temperature.value, humidity.value, light.value, sound.value)
-        client.publish(publishTopic.value, gson.toJson(deviceInfo).toByteArray(Charsets.UTF_8), 2, true)
     }
 
     fun subscribe(){
@@ -63,17 +59,27 @@ class MainViewModel: ViewModel() {
             }
 
             override fun messageArrived(topic: String?, message: MqttMessage?) {
-                receivedMessage.value += message.toString()
+                Toast.makeText(scene.getContext(), "Message received", Toast.LENGTH_LONG).show()
+                Log.d("TAG", "messageArrived: ${message.toString()}")
+                message?.let {
+                    receivedMessage.value += it.toString()
+                }
             }
 
             override fun deliveryComplete(token: IMqttDeliveryToken?) {
-                Toast.makeText(scene.getContext(), "Sent message", Toast.LENGTH_LONG).show()
+
             }
 
             override fun connectComplete(reconnect: Boolean, serverURI: String?) {
                 connectStatus.value = "Done kết nối"
             }
         })
+    }
+
+    fun publish(){
+        val deviceInfo = Device(temperature.value, humidity.value, light.value, sound.value)
+        client.publish(publishTopic.value, gson.toJson(deviceInfo).toByteArray(Charsets.UTF_8), 2, false)
+        Log.d("TAG", "publish: ${gson.toJson(deviceInfo)}")
     }
 
     override fun onCleared() {
